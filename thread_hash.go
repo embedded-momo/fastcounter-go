@@ -1,7 +1,7 @@
 package fastcounter
 
 import (
-        "unsafe"
+	"unsafe"
 )
 
 //go:linkname getm runtime.getm

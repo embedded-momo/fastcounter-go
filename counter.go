@@ -4,14 +4,17 @@ import (
 	"sync/atomic"
 )
 
+// cacheLineSize is the most pessimistic guess of actual cache line size, at the cost of wasting more memory.
+const cacheLineSize = 128
+
 type Counter struct {
-	_        [8]int64
+	_        [cacheLineSize]int8 // why this is needed?
 	counters [64]counter
 }
 
 type counter struct {
-	_     [7]int64
 	value int64
+	_     [cacheLineSize - 8]int8
 }
 
 func NewCounter() *Counter {
@@ -27,9 +30,9 @@ func (c *Counter) Read() int64 {
 	a := int64(0)
 	b := int64(0)
 
-	for i := 0; i < 64; i+=2 {
-		a += atomic.LoadInt64(&c.counters[i].value)
-		b += atomic.LoadInt64(&c.counters[i+1].value)
+	for i := 0; i < 64; i += 2 {
+		a += c.counters[i].value
+		b += c.counters[i+1].value
 	}
 
 	return a + b
