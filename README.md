@@ -1,12 +1,12 @@
 # fastcounter-go
 
-A fast concurrent counter for X86-64.
+A fast concurrent counter for write-heavy workload.
 
 ## Benchmark
 
-For write-heavy workload, it's on par with [chen3feng/atomiccounter](https://github.com/chen3feng/atomiccounter), while the read path is faster then previous one.
+For write-heavy workload, `Add` is on par with [chen3feng/atomiccounter](https://github.com/chen3feng/atomiccounter), while the `Read` is faster.
 
-With 16 threads:
+AMD Ryzen 7 5800H:
 
 ```
 goos: linux
@@ -15,59 +15,64 @@ pkg: atomiccounter_bench
 cpu: AMD Ryzen 7 5800H with Radeon Graphics
                       │   result    │
                       │   sec/op    │
-Add_NonAtomic-16        946.3n ± 0%
-Add_Atomic-16           1.612µ ± 0%
-Add_AtomicCounter-16    118.8n ± 1%
-Add_XsyncCounter-16     253.5n ± 1%
-Add_GoAdder-16          409.6n ± 1%
-Add_GarrAdder-16        405.0n ± 0%
-Add_FastCounter-16      116.5n ± 8%
+Add_NonAtomic-16        941.8n ± 1%
+Add_Atomic-16           1.613µ ± 0%
+Add_AtomicCounter-16    118.2n ± 6%
+Add_XsyncCounter-16     198.0n ± 4%
+Add_GoAdder-16          407.6n ± 1%
+Add_GarrAdder-16        404.1n ± 1%
+Add_FastCounter-16      115.3n ± 0%
 
-Read_NonAtomic-16       4.884n ± 0%
-Read_Atomic-16          4.881n ± 0%
-Read_AtomicCounter-16   401.8n ± 1%
-Read_XSyncCounter-16    337.8n ± 0%
-Read_GoAdder-16         33.50n ± 0%
-Read_GarrAdder-16       34.34n ± 0%
-Read_FastCounter-16     348.2n ± 0%
+Read_NonAtomic-16       4.879n ± 0%
+Read_Atomic-16          4.894n ± 0%
+Read_AtomicCounter-16   402.5n ± 1%
+Read_XSyncCounter-16    337.5n ± 0%
+Read_GoAdder-16         33.51n ± 0%
+Read_GarrAdder-16       34.32n ± 0%
+Read_FastCounter-16     288.0n ± 0%
+
+geomean                 135.8n
 ```
 
-With 2 threads:
+Apple M1 Pro:
 
 ```
-goos: linux
-goarch: amd64
+goos: darwin
+goarch: arm64
 pkg: atomiccounter_bench
-cpu: AMD Ryzen 7 5800H with Radeon Graphics
-                     │   result    │
-                     │   sec/op    │
-Add_NonAtomic-2        347.7n ± 1%
-Add_Atomic-2           1.037µ ± 0%
-Add_AtomicCounter-2    865.1n ± 0%
-Add_XsyncCounter-2     1.346µ ± 0%
-Add_GoAdder-2          2.010µ ± 0%
-Add_GarrAdder-2        2.006µ ± 1%
-Add_FastCounter-2      845.1n ± 0%
+cpu: Apple M1 Pro
+                      │    result    │
+                      │    sec/op    │
+Add_NonAtomic-10        21.58n ±  0%
+Add_Atomic-10           7.548µ ±  1%
+Add_AtomicCounter-10    98.88n ± 16%
+Add_XsyncCounter-10     161.0n ±  3%
+Add_GoAdder-10          1.950µ ±  7%
+Add_GarrAdder-10        1.404µ ±  3%
+Add_FastCounter-10      97.55n ±  1%
 
-Read_NonAtomic-2       38.96n ± 0%
-Read_Atomic-2          38.88n ± 0%
-Read_AtomicCounter-2   3.171µ ± 1%
-Read_XSyncCounter-2    2.696µ ± 0%
-Read_GoAdder-2         267.3n ± 0%
-Read_GarrAdder-2       274.2n ± 0%
-Read_FastCounter-2     2.780µ ± 0%
+Read_NonAtomic-10       4.051n ±  0%
+Read_Atomic-10          8.407n ±  6%
+Read_AtomicCounter-10   277.4n ±  0%
+Read_XSyncCounter-10    467.4n ±  0%
+Read_GoAdder-10         34.21n ±  1%
+Read_GarrAdder-10       34.16n ±  1%
+Read_FastCounter-10     130.6n ±  6%
+
+geomean                 131.6n
 ```
 
 ## How does it works?
 
 fastcounter follows the same approach as [chen3feng/atomiccounter](https://github.com/chen3feng/atomiccounter), with minor simplification:
 
-- it doesn't allocate in chunks, and can't save memory by sharing cells
-- the `Read` loop is manually unrolled to read two int64s in one go
-- `Read` utlizes atomic read, this makas no difference for X86-64, but it's much slower for ARM64.
+- fastcounter doesn't allocate in chunks, and can't save memory by sharing cells
+- fastcounter use a more pessimistic guess of cache line size, at the cost of wasting memory
+- `Read` is manually unrolled to read two int64s in one go
+- code is simple, you can easily adopt it to your actual need (different cache size, different shards, etc)
  
 ## Should I use this package?
 
 No, this package is mainly for learning purpose.
 
-Please consider `sync/atomic`first, unless you have high frequency and high concurrency operations.
+Please consider `sync/atomic`first, unless you have high frequency/high concurrency operations and atomic operations become the bottleneck.
